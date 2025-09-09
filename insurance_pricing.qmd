@@ -1,0 +1,115 @@
+---
+title: "Insurance prices"
+format: html
+editor: visual
+---
+
+## Insurance pricing
+
+### Selecting urban areas
+
+```{r}
+library(tidyverse)
+urban_all <- read.csv("2020_Census_ua_list_all.csv")
+```
+
+```{r select two most populous areas from each state}
+urban_two <- urban_all |>
+  separate(NAME, c("CITY", "STATE"), sep = ", ") |>
+  mutate(POP = as.numeric(str_replace_all(POP, ",", ""))) |>
+  slice_max(order_by = POP, n = 2, by = STATE) # selecting 2 highest pops -- consider pop dens?
+```
+
+```{r ***create list of zips***}
+library(httr)
+library(jsonlite)
+
+key <- "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI2IiwianRpIjoiZDk4MGYzMjMyNDYwZDUwZDcxZGJlNmJiMmE4OTAyNmRiMTIzMDJmNDA1NGJlNDNkNDdkOTY0ZjQ2MDM3NjJjZTkyYWJhYWVmMDZlZmZjZjEiLCJpYXQiOjE3NTY5Mjk5NzkuNDQ0NzkyLCJuYmYiOjE3NTY5Mjk5NzkuNDQ0Nzk0LCJleHAiOjIwNzI0NjI3NzkuNDQwNjQzLCJzdWIiOiIxMDc5NDciLCJzY29wZXMiOltdfQ.U7VWOKAy0YLt6oH5y5Nq0ie2RMTwyWIPVY1FbcoPwzP9InJUsAmOIDpMDAw5pDhqyHxkAho6j4UBKrmi__ACzA"
+url <- "https://www.huduser.gov/hudapi/public/usps"
+
+# Note that type is set to 1 which will return values for the ZIP to Tract file and query is set to VA which will return Zip Codes in Virginia
+response <- httr::GET(url, query = list(type = 1, query = "VA"), add_headers(Authorization = paste("Bearer", key)))
+
+#check for errors
+httr::http_error(response)
+
+#access up the output
+output <- fromJSON(httr::content(response))
+
+#change json to table
+table <- fromJSON(output)
+```
+
+```{r create list of links from dictionary of zips and states}
+
+zips_int <- c(10000,100001,100002,10003)
+zips_char <- as.character(zips_int)
+
+
+link <- "https://www.kff.org/interactive/subsidy-calculator/#state=ca&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
+
+map(zips_char, str_replace, string = link, pattern = "ZIPCODE")
+
+1:10 |>
+  map(rnorm, n = 10)
+
+toString
+
+```
+
+```{r open website from URL}
+#sources:
+
+library(RSelenium)
+library(netstat) #checks for free port
+
+rs_driver_object <- rsDriver(browser = "chrome",
+  chromever = "140.0.7339.80",
+  verbose = F,
+  port=free_port(),
+  phantomver = NULL
+)
+
+remDr <- rs_driver_object$client
+
+# 13.Incase you close the browser you can open it again by
+# remDr$open()
+# Maximize window as well by
+# remDr$maxWindowSize()
+
+remDr$navigate("https://www.kff.org/interactive/subsidy-calculator/#state=ca&zip=90001&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0")
+
+Sys.sleep(4)
+```
+
+```{r read page and give integer}
+# sources: https://r4ds.hadley.nz/webscraping.html, https://www.appsilon.com/post/webscraping-dynamic-websites-with-r
+
+# install.packages("seleniumPipes", repos = NULL, type="source")
+
+read_html(remDr$getPageSource()[[1]]) |>
+  html_nodes(".bold-blue") |>
+  html_text() |> 
+  extract(5) |>
+  str_replace_all("\\$", "") |>
+  as.integer()
+
+```
+
+```{r}
+# Accept cookies
+acceptCookies <- remDr$findElement(using = "css selector",
+                                   value = ".js-accept-all-close")
+acceptCookies$clickElement()
+# Give some time to load
+Sys.sleep(2)
+# Close add
+closeAdd <- remDr$findElement(using = "css selector",
+                              value = "#advertClose")
+closeAdd$clickElement()
+```
+
+```{r}
+remDr$closeWindow()
+system("taskkill /im java.exe /f")
+```
