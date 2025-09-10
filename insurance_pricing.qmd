@@ -10,21 +10,6 @@ editor: visual
 
 ```{r}
 library(tidyverse)
-
-# urban_all <- read.csv("2020_Census_ua_list_all.csv")|>
-#   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
-#   mutate(CITY = toupper(CITY)) |> 
-#   
-# 
-# urban_all <- separate_rows(urban_all, CITY, 1, sep = "--")
-# urban_all <- separate_rows(urban_all, STATE, 1, sep = "--")
-# 
-# urban_indiv_names <- read.csv("2020_Census_ua_list_all.csv")|>
-#   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
-#   mutate(
-#          CITY = sapply(strsplit(CITY,"-"), `[`, 1),
-#          STATE = sapply(strsplit(STATE,"-"), `[`, 1))
-# 
 ```
 
 ```{r selecting place names and ages}
@@ -79,7 +64,7 @@ rural_two <- places_all |>
   sample_n(2)
 ```
 
-```{r IDing rural areas}
+```{r zips}
 zips_all <- read_csv("ZIP_Locale_Detail.csv", # https://postalpro.usps.com/ZIP_Locale_Detail
   col_types = cols(.default = col_character())) |> # https://r4ds.had.co.nz/data-import.html
   rename(CITY = `PHYSICAL CITY`,
@@ -87,43 +72,44 @@ zips_all <- read_csv("ZIP_Locale_Detail.csv", # https://postalpro.usps.com/ZIP_L
 
 zips_urban <- urban_two |>
   left_join(zips_all, by = c("CITY", "STATE")) |>
-  select(CITY, STATE, `PHYSICAL ZIP`, POP, age0s, age10s, age20s, age30s, 
+  select(CITY, STATE, `PHYSICAL ZIP`, POP, age0s, age10s, age20s, age30s,
          age40s, age50s, age60s, age70s, age80plus) |>
-  unique()
+  unique() |>
+  mutate(type = "Urban")
 
 zips_rural <- rural_two |>
   left_join(zips_all, by = c("CITY", "STATE")) |>
-  select(CITY, STATE, `PHYSICAL ZIP`, POP, age0s, age10s, age20s, age30s, 
+  select(CITY, STATE, `PHYSICAL ZIP`, POP, age0s, age10s, age20s, age30s,
          age40s, age50s, age60s, age70s, age80plus) |>
-  unique()
+  unique() |>
+  mutate(type = "Rural")
 
 ```
 
 ```{r create list of links from dictionary of zips and states}
 
-zips_int <- c(10000,100001,100002,10003)
-states <- c("MA","IL","Ky", "df")
-zips_char <- as.character(zips_int)
-
+zips_rural_urban <- rbind(zips_urban, zips_rural)
 
 link <- "https://www.kff.org/interactive/subsidy-calculator/#state=STATEABBR&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
 
 dbl_replace <- function (state, zip, link) {
+  state <- tolower(state)
   link <- str_replace(state, string = link, pattern = "STATEABBR")
   link <- str_replace(zip, string = link, pattern = "ZIPCODE")
   link
 }
 
-map2(zips_char, states, dbl_replace, link = link)
-
+zips_urls <- zips_rural_urban |>
+  mutate(kff_url = dbl_replace(STATE, `PHYSICAL ZIP`, link = link))
 
 ```
 
-```{r open website from URL}
+```{r start dynamic webpage}
 #sources:
 
 library(RSelenium)
 library(netstat) #checks for free port
+library(rvest)
 
 rs_driver_object <- rsDriver(browser = "chrome",
   chromever = "140.0.7339.80",
@@ -134,12 +120,46 @@ rs_driver_object <- rsDriver(browser = "chrome",
 
 remDr <- rs_driver_object$client
 
+```
+
+
+```{r}
 # 13.Incase you close the browser you can open it again by
 # remDr$open()
 # Maximize window as well by
 # remDr$maxWindowSize()
 
-remDr$navigate("https://www.kff.org/interactive/subsidy-calculator/#state=ca&zip=90001&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0")
+get_insurance_price <- function(remDr, url) {
+  if(is.na(url)) {
+    NA
+  } else {
+    remDr$navigate(url)
+    # Sys.sleep(1)
+    remDr$refresh()
+    # Sys.sleep(1)
+    read_html(remDr$getPageSource()[[1]]) |>
+      html_nodes(".bold-blue") |>
+      html_text() |>
+      nth(5) |>
+      parse_number()   
+  }
+}
+
+# test_link <- "https://www.kff.org/interactive/subsidy-calculator/#state=il&zip=60901&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
+# 
+# get_insurance_price(remDr, test_link)
+
+zips_head <-head(zips_urls)
+
+prices <- map(zips_urls$kff_url, get_insurance_price, remDr = remDr) |>
+  unlist()
+
+full_df <- cbind(zips_urls, prices)
+
+test <- map(test$kff_url, get_insurance_price, remDr = remDr)
+
+
+remDr$navigate("https://www.kff.org/interactive/subsidy-calculator/#state=il&zip=60901&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0")
 
 Sys.sleep(4)
 ```
@@ -152,7 +172,7 @@ Sys.sleep(4)
 read_html(remDr$getPageSource()[[1]]) |>
   html_nodes(".bold-blue") |>
   html_text() |> 
-  extract(5) |>
+  nth(5) |>
   parse_number()
 
   # str_replace_all("\\$", "") |>
@@ -199,3 +219,29 @@ output <- fromJSON(httr::content(response))
 #change json to table
 table <- fromJSON(output)
 ```
+
+```{r}
+
+# urban_all <- read.csv("2020_Census_ua_list_all.csv")|>
+#   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
+#   mutate(CITY = toupper(CITY)) |> 
+#   
+# 
+# urban_all <- separate_rows(urban_all, CITY, 1, sep = "--")
+# urban_all <- separate_rows(urban_all, STATE, 1, sep = "--")
+# 
+# urban_indiv_names <- read.csv("2020_Census_ua_list_all.csv")|>
+#   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
+#   mutate(
+#          CITY = sapply(strsplit(CITY,"-"), `[`, 1),
+#          STATE = sapply(strsplit(STATE,"-"), `[`, 1))
+# 
+```
+
+```{r}
+# map2(zips_char, states, dbl_replace, link = link)
+
+# test <- zips_urls |>
+#   mutate(insurance_price = get_insurance_price(remDr, kff_url))
+```
+
