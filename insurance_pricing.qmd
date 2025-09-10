@@ -108,19 +108,14 @@ zips_char <- as.character(zips_int)
 
 link <- "https://www.kff.org/interactive/subsidy-calculator/#state=STATEABBR&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
 
-dbl_replace <- function (state, zip, link = link) {
+dbl_replace <- function (state, zip, link) {
   link <- str_replace(state, string = link, pattern = "STATEABBR")
   link <- str_replace(zip, string = link, pattern = "ZIPCODE")
   link
 }
 
-map2(zips_char, states, dbl_replace)
+map2(zips_char, states, dbl_replace, link = link)
 
-map(*list of states*, str_replace, string = )
-1:10 |>
-  map(rnorm, n = 10)
-
-toString
 
 ```
 
