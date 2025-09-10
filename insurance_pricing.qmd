@@ -90,7 +90,7 @@ zips_rural <- rural_two |>
 
 zips_rural_urban <- rbind(zips_urban, zips_rural)
 
-link <- "https://www.kff.org/interactive/subsidy-calculator/#state=STATEABBR&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
+link <- "https://www.kff.org/interactive/subsidy-calculator/#state=STATEABBR&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=AGENUM&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
 
 dbl_replace <- function (state, zip, link) {
   state <- tolower(state)
@@ -145,16 +145,44 @@ get_insurance_price <- function(remDr, url) {
   }
 }
 
-# test_link <- "https://www.kff.org/interactive/subsidy-calculator/#state=il&zip=60901&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
+test_link <- "https://www.kff.org/interactive/subsidy-calculator/#state=il&zip=60901&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=AGENUM&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
 # 
 # get_insurance_price(remDr, test_link)
 
+ages <- c(21, 30, 40, 50, 60) |>
+  as.character()
+
 zips_head <-head(zips_urls)
 
-prices <- map(zips_urls$kff_url, get_insurance_price, remDr = remDr) |>
-  unlist()
+## returns one row of prices per zipcode -- prices based on ages written above
+get_prices_by_age_df <- function(remDr, ages, url) {
+  urls_by_age <- map(ages, str_replace, string = url, pattern = "AGENUM")
 
-full_df <- cbind(zips_urls, prices)
+  print(urls_by_age[[1]])
+  prices20 <- map(urls_by_age[[1]], get_insurance_price, remDr = remDr) |>
+    unlist()
+  prices20
+  prices30 <- map(urls_by_age[2], get_insurance_price, remDr = remDr) |>
+     unlist()
+  prices40 <- map(urls_by_age[3], get_insurance_price, remDr = remDr) |>
+     unlist()
+  prices50 <- map(urls_by_age[4], get_insurance_price, remDr = remDr) |>
+    unlist()
+  prices60 <- map(urls_by_age[5], get_insurance_price, remDr = remDr) |>
+    unlist()
+
+  prices_df <- cbind(prices20, prices30, prices40, prices50, prices60)
+  prices_df
+
+}
+
+get_prices_by_age_df(remDr, ages, test_link)
+
+
+## geting prices
+
+
+
 
 test <- map(test$kff_url, get_insurance_price, remDr = remDr)
 
