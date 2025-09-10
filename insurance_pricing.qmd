@@ -129,6 +129,7 @@ remDr <- rs_driver_object$client
 # Maximize window as well by
 # remDr$maxWindowSize()
 
+## gets scrapes webpage for one insurance quote
 get_insurance_price <- function(remDr, url) {
   if(is.na(url)) {
     NA
@@ -155,13 +156,12 @@ ages <- c(21, 30, 40, 50, 60) |>
 zips_head <-head(zips_urls)
 
 ## returns one row of prices per zipcode -- prices based on ages written above
-get_prices_by_age_df <- function(remDr, ages, url) {
+get_prices_row <- function(remDr, ages, url) {
   urls_by_age <- map(ages, str_replace, string = url, pattern = "AGENUM")
 
   print(urls_by_age[[1]])
   prices20 <- map(urls_by_age[[1]], get_insurance_price, remDr = remDr) |>
     unlist()
-  prices20
   prices30 <- map(urls_by_age[2], get_insurance_price, remDr = remDr) |>
      unlist()
   prices40 <- map(urls_by_age[3], get_insurance_price, remDr = remDr) |>
@@ -171,17 +171,22 @@ get_prices_by_age_df <- function(remDr, ages, url) {
   prices60 <- map(urls_by_age[5], get_insurance_price, remDr = remDr) |>
     unlist()
 
-  prices_df <- cbind(prices20, prices30, prices40, prices50, prices60)
-  prices_df
+  prices_row <- cbind(prices20, prices30, prices40, prices50, prices60) |>
+    data.frame()
+  
+  colnames(prices_row) <- c("prices20", "prices30", "prices40", "prices50", "prices60")
 
+  prices_row
 }
+
+prices_df <- map_dfr(zips_urls$kff_url, get_prices_row, remDr = remDr, ages = ages)
+
+full_df <- cbind(zips_urls, prices_df)
 
 get_prices_by_age_df(remDr, ages, test_link)
 
 
 ## geting prices
-
-
 
 
 test <- map(test$kff_url, get_insurance_price, remDr = remDr)
