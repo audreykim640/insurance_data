@@ -1,0 +1,31 @@
+---
+title: "Plotting prices"
+format: html
+editor: visual
+---
+
+## Quarto
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+long_df <- full_df |>
+  pivot_longer(
+      cols = starts_with("prices"),
+      names_to = "age",
+      names_prefix = "prices",
+      values_to = "price",
+      values_drop_na = TRUE
+  )
+```
+
+
+```{r}
+ggplot(long_df, aes(x = age, y = price, color = type)) +
+  geom_point() +
+  facet_wrap(~ STATE)
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

@@ -190,6 +190,7 @@ full_df_corrected <- full_df |>
 prices_df_ny_vt <- map_dfr(ny_vt$kff_url, get_prices_row, remDr = remDr, ages = ages)
 ny_vt_full <- cbind(ny_vt, prices_df_ny_vt)
 full_df_corrected <- rbind(full_df_corrected, ny_vt_full)
+full_df <- full_df_corrected
 ```
 
 ```{r read page and give integer}
