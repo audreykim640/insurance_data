@@ -86,49 +86,37 @@ zips_all <- read_csv("ZIP_Locale_Detail.csv", # https://postalpro.usps.com/ZIP_L
          STATE = `PHYSICAL STATE`)
 
 zips_urban <- urban_two |>
-  full_join(zips_all, by = c("CITY", "STATE")) |>
-  select(CITY, STATE, `PHYSICAL ZIP`) |>
+  left_join(zips_all, by = c("CITY", "STATE")) |>
+  select(CITY, STATE, `PHYSICAL ZIP`, POP, age0s, age10s, age20s, age30s, 
+         age40s, age50s, age60s, age70s, age80plus) |>
   unique()
 
-rural_all <- zips_all |>
-  
-  
-  anti_join(urban_all, by = c("CITY", "STATE")) |>
-  select(`CITY`, `STATE`, `PHYSICAL ZIP`) |>
+zips_rural <- rural_two |>
+  left_join(zips_all, by = c("CITY", "STATE")) |>
+  select(CITY, STATE, `PHYSICAL ZIP`, POP, age0s, age10s, age20s, age30s, 
+         age40s, age50s, age60s, age70s, age80plus) |>
   unique()
 
-```
-
-```{r ***create list of zips***}
-library(httr)
-library(jsonlite)
-
-key <- "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI2IiwianRpIjoiZDk4MGYzMjMyNDYwZDUwZDcxZGJlNmJiMmE4OTAyNmRiMTIzMDJmNDA1NGJlNDNkNDdkOTY0ZjQ2MDM3NjJjZTkyYWJhYWVmMDZlZmZjZjEiLCJpYXQiOjE3NTY5Mjk5NzkuNDQ0NzkyLCJuYmYiOjE3NTY5Mjk5NzkuNDQ0Nzk0LCJleHAiOjIwNzI0NjI3NzkuNDQwNjQzLCJzdWIiOiIxMDc5NDciLCJzY29wZXMiOltdfQ.U7VWOKAy0YLt6oH5y5Nq0ie2RMTwyWIPVY1FbcoPwzP9InJUsAmOIDpMDAw5pDhqyHxkAho6j4UBKrmi__ACzA"
-url <- "https://www.huduser.gov/hudapi/public/usps"
-
-# Note that type is set to 1 which will return values for the ZIP to Tract file and query is set to VA which will return Zip Codes in Virginia
-response <- httr::GET(url, query = list(type = 1, query = "VA"), add_headers(Authorization = paste("Bearer", key)))
-
-#check for errors
-httr::http_error(response)
-
-#access up the output
-output <- fromJSON(httr::content(response))
-
-#change json to table
-table <- fromJSON(output)
 ```
 
 ```{r create list of links from dictionary of zips and states}
 
 zips_int <- c(10000,100001,100002,10003)
+states <- c("MA","IL","Ky", "df")
 zips_char <- as.character(zips_int)
 
 
-link <- "https://www.kff.org/interactive/subsidy-calculator/#state=ca&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
+link <- "https://www.kff.org/interactive/subsidy-calculator/#state=STATEABBR&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
 
-map(zips_char, str_replace, string = link, pattern = "ZIPCODE")
+dbl_replace <- function (state, zip, link = link) {
+  link <- str_replace(state, string = link, pattern = "STATEABBR")
+  link <- str_replace(zip, string = link, pattern = "ZIPCODE")
+  link
+}
 
+map2(zips_char, states, dbl_replace)
+
+map(*list of states*, str_replace, string = )
 1:10 |>
   map(rnorm, n = 10)
 
@@ -178,6 +166,13 @@ read_html(remDr$getPageSource()[[1]]) |>
 ```
 
 ```{r}
+remDr$closeWindow()
+system("taskkill /im java.exe /f")
+```
+
+***Graveyard***
+
+```{r}
 # Accept cookies
 acceptCookies <- remDr$findElement(using = "css selector",
                                    value = ".js-accept-all-close")
@@ -190,7 +185,22 @@ closeAdd <- remDr$findElement(using = "css selector",
 closeAdd$clickElement()
 ```
 
-```{r}
-remDr$closeWindow()
-system("taskkill /im java.exe /f")
+```{r ***create list of zips***}
+library(httr)
+library(jsonlite)
+
+key <- "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI2IiwianRpIjoiZDk4MGYzMjMyNDYwZDUwZDcxZGJlNmJiMmE4OTAyNmRiMTIzMDJmNDA1NGJlNDNkNDdkOTY0ZjQ2MDM3NjJjZTkyYWJhYWVmMDZlZmZjZjEiLCJpYXQiOjE3NTY5Mjk5NzkuNDQ0NzkyLCJuYmYiOjE3NTY5Mjk5NzkuNDQ0Nzk0LCJleHAiOjIwNzI0NjI3NzkuNDQwNjQzLCJzdWIiOiIxMDc5NDciLCJzY29wZXMiOltdfQ.U7VWOKAy0YLt6oH5y5Nq0ie2RMTwyWIPVY1FbcoPwzP9InJUsAmOIDpMDAw5pDhqyHxkAho6j4UBKrmi__ACzA"
+url <- "https://www.huduser.gov/hudapi/public/usps"
+
+# Note that type is set to 1 which will return values for the ZIP to Tract file and query is set to VA which will return Zip Codes in Virginia
+response <- httr::GET(url, query = list(type = 1, query = "VA"), add_headers(Authorization = paste("Bearer", key)))
+
+#check for errors
+httr::http_error(response)
+
+#access up the output
+output <- fromJSON(httr::content(response))
+
+#change json to table
+table <- fromJSON(output)
 ```
