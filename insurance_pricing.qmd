@@ -10,14 +10,93 @@ editor: visual
 
 ```{r}
 library(tidyverse)
-urban_all <- read.csv("2020_Census_ua_list_all.csv")
+
+# urban_all <- read.csv("2020_Census_ua_list_all.csv")|>
+#   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
+#   mutate(CITY = toupper(CITY)) |> 
+#   
+# 
+# urban_all <- separate_rows(urban_all, CITY, 1, sep = "--")
+# urban_all <- separate_rows(urban_all, STATE, 1, sep = "--")
+# 
+# urban_indiv_names <- read.csv("2020_Census_ua_list_all.csv")|>
+#   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
+#   mutate(
+#          CITY = sapply(strsplit(CITY,"-"), `[`, 1),
+#          STATE = sapply(strsplit(STATE,"-"), `[`, 1))
+# 
 ```
 
-```{r select two most populous areas from each state}
-urban_two <- urban_all |>
+```{r selecting place names and ages}
+places_all <- read.csv("DECENNIALDP2020.DP1-Data.csv") |>
   separate(NAME, c("CITY", "STATE"), sep = ", ") |>
-  mutate(POP = as.numeric(str_replace_all(POP, ",", ""))) |>
-  slice_max(order_by = POP, n = 2, by = STATE) # selecting 2 highest pops -- consider pop dens?
+  mutate(CITY = toupper(CITY)) |>
+  rename(POP = DP1_0001C,
+         age0_5 = DP1_0002C,
+         age5_10 = DP1_0003C,
+         age10_15 = DP1_0004C,
+         age15_20 = DP1_0005C,
+         age20_25 = DP1_0006C,
+         age25_30 = DP1_0007C,
+         age30_35 = DP1_0008C,
+         age35_40 = DP1_0009C,
+         age40_45 = DP1_0010C,
+         age45_50 = DP1_0011C,
+         age50_55 = DP1_0012C,
+         age55_60 = DP1_0013C,
+         age60_65 = DP1_0014C,
+         age65_70 = DP1_0015C,
+         age70_75 = DP1_0016C,
+         age75_80 = DP1_0017C,
+         age80_85 = DP1_0018C,
+         age85plus = DP1_0019C
+                  ) |>
+  mutate(age0s = as.numeric(age0_5) + as.numeric(age5_10),
+         age10s = as.numeric(age10_15) + as.numeric(age15_20),
+         age20s = as.numeric(age20_25) + as.numeric(age25_30),
+         age30s = as.numeric(age30_35) + as.numeric(age35_40),
+         age40s = as.numeric(age40_45) + as.numeric(age45_50),
+         age50s = as.numeric(age50_55) + as.numeric(age55_60),
+         age60s = as.numeric(age60_65) + as.numeric(age65_70),
+         age70s = as.numeric(age70_75) + as.numeric(age75_80),
+         age80plus = as.numeric(age80_85) + as.numeric(age85plus),
+         POP = as.numeric(POP),
+         STATE = state.abb[match(STATE, state.name)],
+         CITY = sub(CITY, pattern = " [[:alpha:]]*$", replacement = "")) |>
+  select(CITY, STATE, POP, age0s, age10s, age20s, age30s, 
+         age40s, age50s, age60s, age70s, age80plus)
+```
+
+```{r select most populous places from each state}
+urban_two <- places_all |>
+  slice_max(order_by = POP, n = 2, by = STATE) # selecting 2 highest pops
+```
+
+```{r randomly select places with 1500-4500 people}
+rural_two <- places_all |>
+  filter(POP %in% 1500:4500) |>
+  group_by(STATE) |>
+  sample_n(2)
+```
+
+```{r IDing rural areas}
+zips_all <- read_csv("ZIP_Locale_Detail.csv", # https://postalpro.usps.com/ZIP_Locale_Detail
+  col_types = cols(.default = col_character())) |> # https://r4ds.had.co.nz/data-import.html
+  rename(CITY = `PHYSICAL CITY`,
+         STATE = `PHYSICAL STATE`)
+
+zips_urban <- urban_two |>
+  full_join(zips_all, by = c("CITY", "STATE")) |>
+  select(CITY, STATE, `PHYSICAL ZIP`) |>
+  unique()
+
+rural_all <- zips_all |>
+  
+  
+  anti_join(urban_all, by = c("CITY", "STATE")) |>
+  select(`CITY`, `STATE`, `PHYSICAL ZIP`) |>
+  unique()
+
 ```
 
 ```{r ***create list of zips***}
@@ -91,8 +170,10 @@ read_html(remDr$getPageSource()[[1]]) |>
   html_nodes(".bold-blue") |>
   html_text() |> 
   extract(5) |>
-  str_replace_all("\\$", "") |>
-  as.integer()
+  parse_number()
+
+  # str_replace_all("\\$", "") |>
+  # as.integer()
 
 ```
 
