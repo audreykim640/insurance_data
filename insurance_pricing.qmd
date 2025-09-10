@@ -104,8 +104,8 @@ zips_urls <- zips_rural_urban |>
 
 ```
 
+
 ```{r start dynamic webpage}
-#sources:
 
 library(RSelenium)
 library(netstat) #checks for free port
@@ -123,12 +123,7 @@ remDr <- rs_driver_object$client
 ```
 
 
-```{r}
-# 13.Incase you close the browser you can open it again by
-# remDr$open()
-# Maximize window as well by
-# remDr$maxWindowSize()
-
+```{r functions for getting prices from website}
 ## gets scrapes webpage for one insurance quote
 get_insurance_price <- function(remDr, url) {
   if(is.na(url)) {
@@ -146,14 +141,9 @@ get_insurance_price <- function(remDr, url) {
   }
 }
 
-test_link <- "https://www.kff.org/interactive/subsidy-calculator/#state=il&zip=60901&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=AGENUM&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
-# 
-# get_insurance_price(remDr, test_link)
 
 ages <- c(21, 30, 40, 50, 60) |>
   as.character()
-
-zips_head <-head(zips_urls)
 
 ## returns one row of prices per zipcode -- prices based on ages written above
 get_prices_row <- function(remDr, ages, url) {
@@ -179,34 +169,38 @@ get_prices_row <- function(remDr, ages, url) {
   prices_row
 }
 
-prices_df <- map_dfr(zips_urls$kff_url, get_prices_row, remDr = remDr, ages = ages)
+```
 
+```{r builds dfs}
+
+## get prices for each row and bind rows into df; form full df
+prices_df <- map_dfr(zips_urls$kff_url, get_prices_row, remDr = remDr, ages = ages)
 full_df <- cbind(zips_urls, prices_df)
 
-get_prices_by_age_df(remDr, ages, test_link)
+```
 
+```{r ny and vt only -- slight url difference}
+ny_vt <- zips_urls |>
+  filter(STATE == "NY" | STATE == "VT") |>
+  mutate(kff_url = str_replace(kff_url, "alternate-plan-family=", "alternate-plan-family=individual"))
 
-## geting prices
+full_df_corrected <- full_df |>
+  filter(STATE != "NY" & STATE != "VT")
 
-
-test <- map(test$kff_url, get_insurance_price, remDr = remDr)
-
-
-remDr$navigate("https://www.kff.org/interactive/subsidy-calculator/#state=il&zip=60901&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0")
-
-Sys.sleep(4)
+prices_df_ny_vt <- map_dfr(ny_vt$kff_url, get_prices_row, remDr = remDr, ages = ages)
+ny_vt_full <- cbind(ny_vt, prices_df_ny_vt)
+full_df_corrected <- rbind(full_df_corrected, ny_vt_full)
 ```
 
 ```{r read page and give integer}
 # sources: https://r4ds.hadley.nz/webscraping.html, https://www.appsilon.com/post/webscraping-dynamic-websites-with-r
-
 # install.packages("seleniumPipes", repos = NULL, type="source")
 
-read_html(remDr$getPageSource()[[1]]) |>
-  html_nodes(".bold-blue") |>
-  html_text() |> 
-  nth(5) |>
-  parse_number()
+# read_html(remDr$getPageSource()[[1]]) |>
+#   html_nodes(".bold-blue") |>
+#   html_text() |> 
+#   nth(5) |>
+#   parse_number()
 
   # str_replace_all("\\$", "") |>
   # as.integer()
