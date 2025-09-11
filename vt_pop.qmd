@@ -1,0 +1,87 @@
+---
+title: "Vermont population"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+
+```
+
+```{r}
+census_api_key("143c8aa9bda11b90ed9eb9817084248407b553ac", install = TRUE)
+
+```
+  separate(NAME, c("CITY", "STATE"), sep = ", ") |>
+  mutate(CITY = toupper(CITY)) |>
+  rename(POP = DP1_0001C,
+         age0_5 = DP1_0002P,
+         age5_10 = DP1_0003P,
+         age10_15 = DP1_0004P,
+         age15_20 = DP1_0005P,
+         age20_25 = DP1_0006P,
+         age25_30 = DP1_0007P,
+         age30_35 = DP1_0008P,
+         age35_40 = DP1_0009P,
+         age40_45 = DP1_0010P,
+         age45_50 = DP1_0011P,
+         age50_55 = DP1_0012P,
+         age55_60 = DP1_0013P,
+         age60_65 = DP1_0014P,
+         age65_70 = DP1_0015P,
+         age70_75 = DP1_0016P,
+         age75_80 = DP1_0017P,
+         age80_85 = DP1_0018P,
+         age85plus = DP1_0019P
+                  ) 
+```{r}
+ages <- get_decennial(geography = "state", 
+                       variables = c("DP1_0001C",
+                                     "DP1_0002P",
+                                     "DP1_0003P",
+                                     "DP1_0004P",  
+                                     "DP1_0005P",
+                                     "DP1_0006P",
+                                     "DP1_0007P",
+                                     "DP1_0008P",
+                                     "DP1_0009P",
+                                     "DP1_0010P",
+                                     "DP1_0011P",
+                                     "DP1_0012P",
+                                     "DP1_0013P",
+                                     "DP1_0014P",
+                                     "DP1_0015P",
+                                     "DP1_0016P",
+                                     "DP1_0017P",
+                                     "DP1_0018P",
+                                     "DP1_0019P"), 
+                       year = 2020,
+                       sumfile = "dp")
+
+ages <- ages |> 
+  rename(POP = DP1_0001C,
+         age0_5 = DP1_0002P,
+         age5_10 = DP1_0003P,
+         age10_15 = DP1_0004P,
+         age15_20 = DP1_0005P,
+         age20_25 = DP1_0006P,
+         age25_30 = DP1_0007P,
+         age30_35 = DP1_0008P,
+         age35_40 = DP1_0009P,
+         age40_45 = DP1_0010P,
+         age45_50 = DP1_0011P,
+         age50_55 = DP1_0012P,
+         age55_60 = DP1_0013P,
+         age60_65 = DP1_0014P,
+         age65_70 = DP1_0015P,
+         age70_75 = DP1_0016P,
+         age75_80 = DP1_0017P,
+         age80_85 = DP1_0018P,
+         age85plus = DP1_0019P
+        )
+
+head(age20)
+```
+
