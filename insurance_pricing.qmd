@@ -55,13 +55,18 @@ places_all <- read.csv("DECENNIALDP2020.DP1-Data.csv") |>
 ```{r select most populous places from each state}
 urban_two <- places_all |>
   slice_max(order_by = POP, n = 2, by = STATE) # selecting 2 highest pops
+
+bennington_vt <- places_all |>
+  filter(CITY == "BENNINGTON" & STATE == "VT")
+
+urban_two <- rbind(urban_two, bennington_vt)
 ```
 
 ```{r randomly select places with 1500-4500 people}
 rural_two <- places_all |>
   filter(POP %in% 1500:4500) |>
   group_by(STATE) |>
-  sample_n(2)
+  sample_n(2) ## should've set seed
 ```
 
 ```{r zips}
@@ -90,6 +95,15 @@ zips_rural <- rural_two |>
 
 zips_rural_urban <- rbind(zips_urban, zips_rural)
 
+write.csv(zips_rural_urban, "zips_df.csv")
+
+# hand-enter rural zips from USPS and Google
+
+zips_df <- read_csv("zips_df_complete.csv") |>
+  rename(ZIP = `PHYSICAL ZIP`) |>
+  mutate(ZIP = str_trim(ZIP)) |>
+  distinct(CITY, STATE, .keep_all = TRUE)
+
 link <- "https://www.kff.org/interactive/subsidy-calculator/#state=STATEABBR&zip=ZIPCODE&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=AGENUM&adults%5B0%5D%5Btobacco%5D=0&child-count=0"
 
 dbl_replace <- function (state, zip, link) {
@@ -99,18 +113,22 @@ dbl_replace <- function (state, zip, link) {
   link
 }
 
-zips_urls <- zips_rural_urban |>
-  mutate(kff_url = dbl_replace(STATE, `PHYSICAL ZIP`, link = link))
+zips_urls <- zips_df |>
+  mutate(kff_url = dbl_replace(STATE, `PHYSICAL ZIP`, link = link)) |>
+  filter(STATE != "PR")
 
 ```
 
 
-```{r start dynamic webpage}
+```{r load libs for dynamic webpage}
 
 library(RSelenium)
 library(netstat) #checks for free port
 library(rvest)
 
+```
+
+```{r start dynamic webpage}
 rs_driver_object <- rsDriver(browser = "chrome",
   chromever = "140.0.7339.80",
   verbose = F,
@@ -150,21 +168,23 @@ get_prices_row <- function(remDr, ages, url) {
   urls_by_age <- map(ages, str_replace, string = url, pattern = "AGENUM")
 
   print(urls_by_age[[1]])
-  prices20 <- map(urls_by_age[[1]], get_insurance_price, remDr = remDr) |>
+  price21 <- map(urls_by_age[[1]], get_insurance_price, remDr = remDr) |>
     unlist()
-  prices30 <- map(urls_by_age[2], get_insurance_price, remDr = remDr) |>
+  price30 <- map(urls_by_age[2], get_insurance_price, remDr = remDr) |>
      unlist()
-  prices40 <- map(urls_by_age[3], get_insurance_price, remDr = remDr) |>
+  price40 <- map(urls_by_age[3], get_insurance_price, remDr = remDr) |>
      unlist()
-  prices50 <- map(urls_by_age[4], get_insurance_price, remDr = remDr) |>
+  price50 <- map(urls_by_age[4], get_insurance_price, remDr = remDr) |>
     unlist()
-  prices60 <- map(urls_by_age[5], get_insurance_price, remDr = remDr) |>
+  price60 <- map(urls_by_age[5], get_insurance_price, remDr = remDr) |>
     unlist()
+  # price70 <- map(urls_by_age[6], get_insurance_price, remDr = remDr) |>
+  #   unlist()
 
-  prices_row <- cbind(prices20, prices30, prices40, prices50, prices60) |>
+  prices_row <- cbind(price21, price30, price40, price50, price60) |>
     data.frame()
   
-  colnames(prices_row) <- c("prices20", "prices30", "prices40", "prices50", "prices60")
+  colnames(prices_row) <- c("price21", "price30", "price40", "price50", "price60")
 
   prices_row
 }
@@ -210,6 +230,7 @@ full_df <- full_df_corrected
 
 ```{r}
 remDr$closeWindow()
+rs_driver_object$server$stop()
 system("taskkill /im java.exe /f")
 ```
 
