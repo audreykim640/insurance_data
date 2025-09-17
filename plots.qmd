@@ -10,12 +10,23 @@ editor: visual
 library(tidyverse)
 ```
 
+
+```{r}
+full_df_avg <- full_df |>
+  mutate(weighted_avg = (age20s * price21 +
+           age30s * price30 +
+           age40s * price40 +
+           age50s * price50 +
+           age60s * price60) / (age20s + age30s + age40s + age50s + age60s))
+```
+
+
 ```{r}
 long_df <- full_df |>
   pivot_longer(
-      cols = starts_with("prices"),
+      cols = starts_with("price"),
       names_to = "age",
-      names_prefix = "prices",
+      names_prefix = "price",
       values_to = "price",
       values_drop_na = TRUE
   )
@@ -25,7 +36,88 @@ long_df <- full_df |>
 ```{r}
 ggplot(long_df, aes(x = age, y = price, color = type)) +
   geom_point() +
-  facet_wrap(~ STATE)
+  facet_wrap(~ STATE) +
+  labs(title = "Insurance proces by age, state, and rural/urban")
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r zipcode price trends - vermont zips highlighted}
+ggplot(long_df, aes(x = age, y = price, group = ZIP, color = ZIP)) +
+  geom_line() +
+  gghighlight(STATE == "VT") +
+  labs(title = "Zipcode price trends by age", subtitle = "Vermont zipcodes highlighted")
+```
+```{r if we pretend these four zipcodes make up the whole state}
+
+
+test <- full_df |>
+  mutate(age20s_num = POP * (age20s/100), #20s
+         age20s_sum_price_zip = age20s_num * price21,
+         age30s_num = POP * (age30s/100), #30s
+         age30s_sum_price_zip = age30s_num * price30,
+         age40s_num = POP * (age40s/100), #40s
+         age40s_sum_price_zip = age40s_num * price40,
+         age50s_num = POP * (age60s/100), #50s
+         age50s_sum_price_zip = age50s_num * price50,
+         age60s_num = POP * (age50s/100), #60s
+         age60s_sum_price_zip = age60s_num * price60) |>
+  group_by(STATE) |>
+  summarise(age20_sum_price_state = sum(age20s_sum_price_zip),
+            age20s_num_state = sum(age20s_num),
+            age30_sum_price_state = sum(age30s_sum_price_zip),
+            age30s_num_state = sum(age30s_num),
+            age40_sum_price_state = sum(age40s_sum_price_zip),
+            age40s_num_state = sum(age40s_num),
+            age50_sum_price_state = sum(age50s_sum_price_zip),
+            age50s_num_state = sum(age50s_num),
+            age60_sum_price_state = sum(age60s_sum_price_zip),
+            age60s_num_state = sum(age60s_num),
+            pop_state = sum(POP)) |>
+  mutate(age20s_price_per_person = age20_sum_price_state / age20s_num_state,
+         age30s_price_per_person = age30_sum_price_state / age30s_num_state,
+         age40s_price_per_person = age40_sum_price_state / age40s_num_state,
+         age50s_price_per_person = age50_sum_price_state / age50s_num_state,
+         age60s_price_per_person = age60_sum_price_state / age60s_num_state) |>
+  select(STATE, 
+         age20s_price_per_person,
+         age30s_price_per_person,
+         age40s_price_per_person,
+         age50s_price_per_person,
+         age60s_price_per_person) |>
+  pivot_longer(
+      cols = starts_with("age"),
+      names_to = "age",
+      names_prefix = "age",
+      values_to = "price",
+      values_drop_na = TRUE
+  )
+
+
+ggplot(test, aes(x = age, y = price, group = STATE, color = STATE)) +
+  geom_line() +
+  geom_text(aes(label = STATE)) +
+  gghighlight(STATE == "VT") +
+  labs(title = "Zipcode price trends by age and state", subtitle = "If we pretend that the four zip codes make up the whole state \n and consider their populations proportionally")
+```
+
+
+
+```{r}
+avgs <- full_df_avg |>
+  select(ZIP, STATE, type, weighted_avg) |>
+  distinct(ZIP, .keep_all = TRUE)
+
+ggplot(avgs, aes(x = ZIP, y = weighted_avg, fill = STATE)) +
+  geom_col() +
+  gghighlight(STATE == "VT") +
+  labs(title = "How much a randomly selected person is expected to pay for each zipcode", 
+       subtitle = "Prices are weighted averages accounting for price and age distributions in each zipcode")
+
+ggplot(avgs, aes(x = ZIP, y = weighted_avg, fill = STATE)) +
+  geom_col() +
+  gghighlight() +
+  facet_wrap(~ STATE) +
+  labs(title = "How much a randomly selected person is expected to pay for each zipcode", 
+       subtitle = "Prices are weighted averages accounting for price and age distributions in each zipcode")
+  
+```
+
