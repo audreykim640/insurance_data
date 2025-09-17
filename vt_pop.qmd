@@ -7,6 +7,7 @@ editor: visual
 ```{r}
 library(tidyverse)
 library(tidycensus)
+library(gghighlight)
 
 ```
 
@@ -60,7 +61,11 @@ ages <- get_decennial(geography = "state",
                        year = 2020,
                        sumfile = "dp")
 
-ages <- ages |> 
+```
+
+```{r}
+ages_wide <- ages |>
+  pivot_wider(names_from = variable, values_from = value) |>
   rename(POP = DP1_0001C,
          age0_5 = DP1_0002P,
          age5_10 = DP1_0003P,
@@ -80,8 +85,34 @@ ages <- ages |>
          age75_80 = DP1_0017P,
          age80_85 = DP1_0018P,
          age85plus = DP1_0019P
-        )
+        ) |>
+  mutate(age0s = as.numeric(age0_5) + as.numeric(age5_10),
+         age10s = as.numeric(age10_15) + as.numeric(age15_20),
+         age20s = as.numeric(age20_25) + as.numeric(age25_30),
+         age30s = as.numeric(age30_35) + as.numeric(age35_40),
+         age40s = as.numeric(age40_45) + as.numeric(age45_50),
+         age50s = as.numeric(age50_55) + as.numeric(age55_60),
+         age60s = as.numeric(age60_65) + as.numeric(age65_70),
+         age70s = as.numeric(age70_75) + as.numeric(age75_80),
+         age80plus = as.numeric(age80_85) + as.numeric(age85plus))
 
-head(age20)
+```
+
+```{r}
+ages_long <- ages_wide |>
+  pivot_longer(
+    cols = c(age10s, age20s, age30s, age40s, age50s, age60s, age70s, age80plus),
+    names_to = "age",
+    values_to = "percent") |>
+  mutate(age = as.factor(age))
+
+```
+
+```{r}
+ggplot(ages_long, aes(x = age, y = percent, group = NAME, color = NAME)) +
+  geom_line(size = 1.5) +
+  gghighlight(NAME == "Vermont") +
+  labs(title = "Percent of residents in age brackets by state",
+       subtitle = "Vermont is highlighted")
 ```
 
