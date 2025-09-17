@@ -114,7 +114,7 @@ dbl_replace <- function (state, zip, link) {
 }
 
 zips_urls <- zips_df |>
-  mutate(kff_url = dbl_replace(STATE, `PHYSICAL ZIP`, link = link)) |>
+  mutate(kff_url = dbl_replace(STATE, ZIP, link = link)) |>
   filter(STATE != "PR")
 
 ```
@@ -200,18 +200,36 @@ full_df <- cbind(zips_urls, prices_df)
 ```
 
 ```{r ny and vt only -- slight url difference}
+
+# isolate ny and vt; correct urls
 ny_vt <- zips_urls |>
   filter(STATE == "NY" | STATE == "VT") |>
   mutate(kff_url = str_replace(kff_url, "alternate-plan-family=", "alternate-plan-family=individual"))
 
+# isolate ks zip; correct url
+ks_66547 <- zips_urls |>
+  filter(ZIP == "66547") |>
+  mutate(kff_url = "https://www.kff.org/interactive/subsidy-calculator/#state=ks&zip=66547&locale=Pottawatomie&income-type=dollars&income=500%2C000&people=1&alternate-plan-family=&adult-count=1&adults%5B0%5D%5Bage%5D=64&adults%5B0%5D%5Btobacco%5D=0&child-count=0")
+
+# remove incorrect ny and vt
 full_df_corrected <- full_df |>
-  filter(STATE != "NY" & STATE != "VT")
+  filter(STATE != "NY" & STATE != "VT") |>
+  filter(ZIP != "66547")
+
+
+prices_df_ks_66547 <- get_prices_row(remDr, ages, ks_66547$kff_url)
+ks_66547_full <- cbind(ks_66547, prices_df_ks_66547)
 
 prices_df_ny_vt <- map_dfr(ny_vt$kff_url, get_prices_row, remDr = remDr, ages = ages)
 ny_vt_full <- cbind(ny_vt, prices_df_ny_vt)
-full_df_corrected <- rbind(full_df_corrected, ny_vt_full)
+full_df_corrected <- rbind(full_df_corrected, ny_vt_full, ks_66547_full)
 full_df <- full_df_corrected
 ```
+
+```{r}
+write.csv(full_df, "full_df.csv")
+```
+
 
 ```{r read page and give integer}
 # sources: https://r4ds.hadley.nz/webscraping.html, https://www.appsilon.com/post/webscraping-dynamic-websites-with-r
